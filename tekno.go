@@ -11,6 +11,8 @@ import (
 )
 
 func main() {
+	const myGuildID = "98470233999675392"
+	const myVoiceChanID = "129972724922580992"
 	client, err := discordgo.New(botToken)
 	if err != nil {
 		fmt.Println(err)
@@ -18,6 +20,21 @@ func main() {
 	}
 	client.StateEnabled = true
 	var currentVoiceSession *discordgo.VoiceConnection
+
+	self, err := client.User("@me")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	client.AddHandler(func(s *discordgo.Session, v *discordgo.VoiceStateUpdate) {
+		if v.UserID != self.ID {
+			return
+		}
+		if len(v.ChannelID) == 0 || v.ChannelID != myVoiceChanID {
+			s.ChannelVoiceJoin(myGuildID, myVoiceChanID, false, false)
+		}
+	})
 
 	client.Open()
 	defer client.Close()
@@ -54,7 +71,7 @@ func main() {
 		client.UserUpdate("", "", "T̴̢̕͞E͡͏̀K̸͜Ņ́̀͘O͟͞", self.Avatar, "")
 	}*/
 
-	currentVoiceSession, err = client.ChannelVoiceJoin("98470233999675392", "129972724922580992", false, false)
+	currentVoiceSession, err = client.ChannelVoiceJoin(myGuildID, myVoiceChanID, false, false)
 	if err != nil {
 		log.Fatal(err)
 	}
