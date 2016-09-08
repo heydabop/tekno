@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -81,6 +83,32 @@ func startStream(discordChan chan []int16) {
 	}
 }
 
+func updateAvatar(session *discordgo.Session, self *discordgo.User) {
+	avatar, err := os.Open("avatar.png")
+	if err != nil {
+		return
+	}
+	defer avatar.Close()
+
+	info, err := avatar.Stat()
+	if err != nil {
+		return
+	}
+	buf := make([]byte, info.Size())
+
+	reader := bufio.NewReader(avatar)
+	reader.Read(buf)
+
+	avatarBase64 := base64.StdEncoding.EncodeToString(buf)
+	avatarBase64 = fmt.Sprintf("data:image/png;base64,%s", avatarBase64)
+
+	_, err = session.UserUpdate("", "", self.Username, avatarBase64, "")
+}
+
+func updateName(session *discordgo.Session, self *discordgo.User, newName string) {
+	session.UserUpdate("", "", newName, self.Avatar, "")
+}
+
 func main() {
 	discordChan := make(chan []int16, 2)
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
@@ -139,10 +167,8 @@ func main() {
 	}()
 	signal.Notify(signals, os.Interrupt)
 
-	/*self, err := client.User("@me")
-	if err == nil {
-		client.UserUpdate("", "", "T̴̢̕͞E͡͏̀K̸͜Ņ́̀͘O͟͞", self.Avatar, "")
-	}*/
+	//updateAvatar(client, self)
+	//updateName(client, self, "T̴̢̕͞E͡͏̀K̸͜Ņ́̀͘O͟͞")
 
 	go startStream(discordChan)
 
