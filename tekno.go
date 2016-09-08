@@ -153,15 +153,17 @@ func main() {
 		}
 	}()
 
-	nowPlayingRegex := regexp.MustCompile(`^Now Playing: (.*?) - Listen now:`)
+	nowPlayingRegex := regexp.MustCompile(`^Now Playing: (.*?)(?:(?: - Listen (?:(?:now: )|(?:on Spotify: )))|$)`)
+	var currentSong string
 	ircConn := irc.IRC(ircNick, ircUser)
 	ircConn.Password = ircPassword
 	ircConn.Connect("irc.chat.twitch.tv:6667")
 	ircConn.Join("#monstercat")
 	ircConn.AddCallback("PRIVMSG", func(e *irc.Event) {
 		if e.Nick == "monstercat" && e.Arguments[0] == "#monstercat" {
-			if match := nowPlayingRegex.FindStringSubmatch(e.Message()); match != nil {
-				if err = client.UpdateStatus(0, match[1]); err != nil {
+			if match := nowPlayingRegex.FindStringSubmatch(e.Message()); match != nil && match[1] != currentSong {
+				currentSong = match[1]
+				if err = client.UpdateStatus(0, currentSong); err != nil {
 					log.Println("ERROR updating status", err)
 				}
 			}
