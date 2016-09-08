@@ -159,7 +159,7 @@ func main() {
 	ircConn.Connect("irc.chat.twitch.tv:6667")
 	ircConn.Join("#monstercat")
 	ircConn.AddCallback("PRIVMSG", func(e *irc.Event) {
-		if e.Arguments[0] == "#monstercat" && e.Nick == "monstercat" {
+		if e.Nick == "monstercat" && e.Arguments[0] == "#monstercat" {
 			if match := nowPlayingRegex.FindStringSubmatch(e.Message()); match != nil {
 				if err = client.UpdateStatus(0, match[1]); err != nil {
 					log.Println("ERROR updating status", err)
