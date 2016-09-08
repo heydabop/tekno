@@ -9,12 +9,14 @@ import (
 	"github.com/bwmarrin/dgvoice"
 	"github.com/bwmarrin/discordgo"
 	"github.com/grafov/m3u8"
+	irc "github.com/thoj/go-ircevent"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -150,6 +152,21 @@ func main() {
 			}
 		}
 	}()
+
+	nowPlayingRegex := regexp.MustCompile(`^Now Playing: (.*?) - Listen now:`)
+	ircConn := irc.IRC(ircNick, ircUser)
+	ircConn.Password = ircPassword
+	ircConn.Connect("irc.chat.twitch.tv:6667")
+	ircConn.Join("#monstercat")
+	ircConn.AddCallback("PRIVMSG", func(e *irc.Event) {
+		if e.Arguments[0] == "#monstercat" && e.Nick == "monstercat" {
+			if match := nowPlayingRegex.FindStringSubmatch(e.Message()); match != nil {
+				if err = client.UpdateStatus(0, match[1]); err != nil {
+					log.Println("ERROR updating status", err)
+				}
+			}
+		}
+	})
 
 	signals := make(chan os.Signal, 1)
 
