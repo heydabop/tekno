@@ -24,7 +24,6 @@ func startStream(discordChan chan []int16) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		log.Fatalln(res.Status)
 	}
@@ -32,6 +31,7 @@ func startStream(discordChan chan []int16) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	res.Body.Close()
 
 	var token struct {
 		Token string `json:"token"`
@@ -46,7 +46,6 @@ func startStream(discordChan chan []int16) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer playlistRes.Body.Close()
 	if playlistRes.StatusCode != 200 {
 		log.Fatalln(playlistRes.Status)
 	}
@@ -55,9 +54,10 @@ func startStream(discordChan chan []int16) {
 	if err = masterPlaylist.DecodeFrom(playlistRes.Body, true); err != nil {
 		log.Fatalln(err)
 	}
+	playlistRes.Body.Close()
 	var audioURL string
 	for _, variant := range masterPlaylist.Variants {
-		if strings.Contains(variant.URI, "audio_only") {
+		if variant.VariantParams.Video == "audio_only" {
 			audioURL = variant.URI
 			break
 		}
@@ -110,6 +110,7 @@ func updateName(session *discordgo.Session, self *discordgo.User, newName string
 }
 
 func main() {
+	closing := false
 	discordChan := make(chan []int16, 2)
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
 	const myGuildID = "98470233999675392"
@@ -129,7 +130,7 @@ func main() {
 	}
 
 	client.AddHandler(func(s *discordgo.Session, v *discordgo.VoiceStateUpdate) {
-		if v.UserID != self.ID {
+		if v.UserID != self.ID || closing {
 			return
 		}
 		if len(v.ChannelID) == 0 || v.ChannelID != myVoiceChanID {
@@ -141,6 +142,7 @@ func main() {
 	defer client.Close()
 	defer client.Logout()
 	defer func() {
+		closing = true
 		if currentVoiceSession != nil {
 			err := currentVoiceSession.Disconnect()
 			if err != nil {
@@ -154,6 +156,7 @@ func main() {
 	go func() {
 		select {
 		case <-signals:
+			closing = true
 			if currentVoiceSession != nil {
 				err := currentVoiceSession.Disconnect()
 				if err != nil {
