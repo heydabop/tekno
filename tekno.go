@@ -1,17 +1,15 @@
 package main
 
 import (
-	//"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/bwmarrin/dgvoice"
 	"github.com/bwmarrin/discordgo"
 	"github.com/grafov/m3u8"
+	"io/ioutil"
 	"log"
 	"net/http"
-	//"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -19,12 +17,7 @@ import (
 	"time"
 )
 
-var (
-	//twitchBuffer bytes.Buffer
-	discordChan chan []int16
-)
-
-func startStream() {
+func startStream(discordChan chan []int16) {
 	res, err := http.Get("http://api.twitch.tv/api/channels/monstercat/access_token")
 	if err != nil {
 		log.Fatalln(err)
@@ -62,37 +55,12 @@ func startStream() {
 	}
 	var audioURL string
 	for _, variant := range masterPlaylist.Variants {
-		/*mediaPlaylistRes, err := http.Get(variant.URI)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		if mediaPlaylistRes.StatusCode != 200 {
-			log.Println(playlistRes.Status)
-			mediaPlaylistRes.Body.Close()
-			continue
-		}
-		p, listType, err := m3u8.DecodeFrom(mediaPlaylistRes.Body, true)
-		if err != nil {
-			log.Println(err)
-			mediaPlaylistRes.Body.Close()
-			continue
-		}
-		if listType != m3u8.MEDIA {
-			log.Println("Expected media got master")
-			mediaPlaylistRes.Body.Close()
-			continue
-		}
-		mediaPlaylistRes.Body.Close()
-		mediaPlaylist := p.(*m3u8.MediaPlaylist)
-		fmt.Println(variant.URI)
-		fmt.Println(mediaPlaylist)*/
 		if strings.Contains(variant.URI, "audio_only") {
 			audioURL = variant.URI
 			break
 		}
 	}
-	//vlc := exec.Command("cvlc", audioURL, "--sout", "#duplicate{dst=std{access=file,mux=raw,dst=-}}")
+
 	vlc := exec.Command("cvlc", audioURL, "--sout", "#transcode{acodec=s16l,samplerate=48000,channels=2}:duplicate{dst=std{access=file,mux=raw,dst=-}}")
 	vlcPipe, err := vlc.StdoutPipe()
 	if err != nil {
@@ -100,13 +68,6 @@ func startStream() {
 	}
 	go func() {
 		for {
-			/*buf := make([]int16, 1920)
-			_, err := vlcPipe.Read(buf)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			fmt.Println(string(buf))
-			discordChan <- buf*/
 			discordBuffer := make([]int16, 1920)
 			err = binary.Read(vlcPipe, binary.LittleEndian, &discordBuffer)
 			if err != nil {
@@ -121,8 +82,7 @@ func startStream() {
 }
 
 func main() {
-	discordChan = make(chan []int16, 2)
-	//twitchBuffer = bytes.NewBuffer(make([]byte, 0, 1024*1024))
+	discordChan := make(chan []int16, 2)
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
 	const myGuildID = "98470233999675392"
 	const myVoiceChanID = "129972724922580992"
@@ -184,7 +144,7 @@ func main() {
 		client.UserUpdate("", "", "T̴̢̕͞E͡͏̀K̸͜Ņ́̀͘O͟͞", self.Avatar, "")
 	}*/
 
-	go startStream()
+	go startStream(discordChan)
 
 	currentVoiceSession, err = client.ChannelVoiceJoin(myGuildID, myVoiceChanID, false, false)
 	if err != nil {
@@ -192,15 +152,8 @@ func main() {
 	}
 	time.Sleep(1 * time.Second)
 
-	for true {
-		if currentVoiceSession.Ready == false || currentVoiceSession.OpusSend == nil {
-			time.Sleep(2 * time.Second)
-			continue
-		}
-		//dgvoice.PlayAudioFile(currentVoiceSession, "Sandstorm.mp3")
-		dgvoice.SendPCM(currentVoiceSession, discordChan)
-		time.Sleep(1 * time.Second)
-		dgvoice.KillPlayer()
-		time.Sleep(5 * time.Second)
+	for currentVoiceSession.Ready == false || currentVoiceSession.OpusSend == nil {
+		time.Sleep(2 * time.Second)
 	}
+	dgvoice.SendPCM(currentVoiceSession, discordChan)
 }
