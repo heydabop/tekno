@@ -22,16 +22,20 @@ import (
 )
 
 func startStream(discordChan chan []int16) {
+	defer close(discordChan)
 	res, err := http.Get("http://api.twitch.tv/api/channels/monstercat/access_token")
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return
 	}
 	if res.StatusCode != 200 {
-		log.Fatalln(res.Status)
+		log.Println(res.Status)
+		return
 	}
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return
 	}
 	res.Body.Close()
 
@@ -41,20 +45,24 @@ func startStream(discordChan chan []int16) {
 	}
 	err = json.Unmarshal(body, &token)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return
 	}
 
 	playlistRes, err := http.Get(fmt.Sprintf("http://usher.twitch.tv/api/channel/hls/monstercat.m3u8?player=twitchweb&&token=%s&sig=%s&allow_audio_only=true&allow_source=true&type=any&p=2015", strings.Replace(token.Token, `\"`, `"`, 0), token.Sig))
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return
 	}
 	if playlistRes.StatusCode != 200 {
-		log.Fatalln(playlistRes.Status)
+		log.Println(playlistRes.Status)
+		return
 	}
 
 	masterPlaylist := m3u8.NewMasterPlaylist()
 	if err = masterPlaylist.DecodeFrom(playlistRes.Body, true); err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return
 	}
 	playlistRes.Body.Close()
 	var audioURL string
@@ -67,21 +75,25 @@ func startStream(discordChan chan []int16) {
 
 	vlc := exec.Command("cvlc", audioURL, "--sout", "#transcode{acodec=s16l,samplerate=48000,channels=2}:duplicate{dst=std{access=file,mux=raw,dst=-}}")
 	vlcPipe, err := vlc.StdoutPipe()
+	defer vlcPipe.Close()
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return
 	}
 	go func() {
 		for {
 			discordBuffer := make([]int16, 1920)
 			err = binary.Read(vlcPipe, binary.LittleEndian, &discordBuffer)
 			if err != nil {
-				log.Fatalln(err)
+				log.Println(err)
+				return
 			}
 			discordChan <- discordBuffer
 		}
 	}()
 	if err := vlc.Run(); err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return
 	}
 }
 
@@ -196,7 +208,8 @@ func main() {
 
 	currentVoiceSession, err = client.ChannelVoiceJoin(myGuildID, myVoiceChanID, false, false)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 	time.Sleep(1 * time.Second)
 
@@ -204,4 +217,5 @@ func main() {
 		time.Sleep(2 * time.Second)
 	}
 	dgvoice.SendPCM(currentVoiceSession, discordChan)
+	close(discordChan)
 }
