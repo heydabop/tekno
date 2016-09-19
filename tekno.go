@@ -22,8 +22,15 @@ import (
 )
 
 func startStream(discordChan chan []int16) {
+	client := http.Client{}
 	defer close(discordChan)
-	res, err := http.Get("http://api.twitch.tv/api/channels/monstercat/access_token")
+	req, err := http.NewRequest("GET", "http://api.twitch.tv/api/channels/monstercat/access_token", nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	req.Header.Add("Client-ID", twitchClientID)
+	res, err := client.Do(req)
 	if err != nil {
 		log.Println(err)
 		return
@@ -73,7 +80,7 @@ func startStream(discordChan chan []int16) {
 		}
 	}
 
-	vlc := exec.Command("cvlc", audioURL, "--sout", "#transcode{acodec=s16l,samplerate=48000,channels=2}:duplicate{dst=std{access=file,mux=raw,dst=-}}")
+	vlc := exec.Command("cvlc", audioURL, "--sout", "#transcode{acodec=s16l,samplerate=48000,channels=2}:duplicate{dst=std{access=file,mux=raw,dst=-}} vlc://quit")
 	vlcPipe, err := vlc.StdoutPipe()
 	defer vlcPipe.Close()
 	if err != nil {
@@ -124,6 +131,12 @@ func updateName(session *discordgo.Session, self *discordgo.User, newName string
 }
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("RECOVERED: ", r)
+		}
+		fmt.Printf("EXITING\n\n")
+	}()
 	closing := false
 	discordChan := make(chan []int16, 2)
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
