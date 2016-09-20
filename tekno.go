@@ -140,13 +140,12 @@ func main() {
 	closing := false
 	discordChan := make(chan []int16, 2)
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
-	const myGuildID = "98470233999675392"
-	const myVoiceChanID = "129972724922580992"
 	client, err := discordgo.New(botToken)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	client.LogLevel = discordgo.LogInformational
 	client.StateEnabled = true
 	var currentVoiceSession *discordgo.VoiceConnection
 
@@ -224,6 +223,7 @@ func main() {
 		log.Println(err)
 		return
 	}
+	currentVoiceSession.LogLevel = discordgo.LogInformational
 	time.Sleep(1 * time.Second)
 
 	for currentVoiceSession.Ready == false || currentVoiceSession.OpusSend == nil {
