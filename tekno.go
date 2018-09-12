@@ -24,7 +24,7 @@ import (
 func startStream(discordChan chan []int16) {
 	client := http.Client{}
 	defer close(discordChan)
-	req, err := http.NewRequest("GET", "http://api.twitch.tv/api/channels/monstercat/access_token", nil)
+	req, err := http.NewRequest("GET", "https://api.twitch.tv/api/channels/monstercat/access_token", nil)
 	if err != nil {
 		log.Println(err)
 		return
@@ -56,7 +56,7 @@ func startStream(discordChan chan []int16) {
 		return
 	}
 
-	playlistRes, err := http.Get(fmt.Sprintf("http://usher.twitch.tv/api/channel/hls/monstercat.m3u8?player=twitchweb&&token=%s&sig=%s&allow_audio_only=true&allow_source=true&type=any&p=2015", strings.Replace(token.Token, `\"`, `"`, 0), token.Sig))
+	playlistRes, err := http.Get(fmt.Sprintf("https://usher.ttvnw.net/api/channel/hls/monstercat.m3u8?player=twitchweb&&token=%s&sig=%s&allow_audio_only=true&allow_source=true&type=any&p=2015", strings.Replace(token.Token, `\"`, `"`, 0), token.Sig))
 	if err != nil {
 		log.Println(err)
 		return
