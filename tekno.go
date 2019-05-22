@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -24,7 +25,7 @@ import (
 func startStream(discordChan chan []int16) {
 	client := http.Client{}
 	defer close(discordChan)
-	req, err := http.NewRequest("GET", "https://api.twitch.tv/api/channels/monstercat/access_token", nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.twitch.tv/api/channels/monstercat/access_token?client_id=%s", twitchClientID), nil)
 	if err != nil {
 		log.Println(err)
 		return
@@ -56,7 +57,7 @@ func startStream(discordChan chan []int16) {
 		return
 	}
 
-	playlistRes, err := http.Get(fmt.Sprintf("https://usher.ttvnw.net/api/channel/hls/monstercat.m3u8?player=twitchweb&&token=%s&sig=%s&allow_audio_only=true&allow_source=true&type=any&p=2015", strings.Replace(token.Token, `\"`, `"`, 0), token.Sig))
+	playlistRes, err := http.Get(fmt.Sprintf("https://usher.ttvnw.net/api/channel/hls/monstercat.m3u8?allow_source=true&baking_bread=true&baking_brownies=true&baking_brownies_timeout=1050&fast_bread=true&p=8569482&player_backend=mediaplayer&playlist_include_framerate=true&reassignments_supported=true&rtqos=control&token=%s&sig=%s&allow_audio_only=true", url.QueryEscape(strings.Replace(token.Token, `\"`, `"`, 0)), token.Sig))
 	if err != nil {
 		log.Println(err)
 		return
@@ -177,7 +178,7 @@ func main() {
 		}
 	}()
 
-	nowPlayingRegex := regexp.MustCompile(`^Now Playing: (.*?)(?:(?: - Listen (?:(?:now: )|(?:on Spotify: )))|$)`)
+	nowPlayingRegex := regexp.MustCompile(`^Now playing (.*?)(?:(?:monstercat.com\/release\/.+)|$)`)
 	var currentSong string
 	ircConn := irc.IRC(ircNick, ircUser)
 	ircConn.Password = ircPassword
